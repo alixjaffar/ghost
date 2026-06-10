@@ -1,0 +1,47 @@
+# Render Blueprint for the Ghost backend API.
+# Deploy: push to GitHub, then in Render -> New -> Blueprint -> pick this repo.
+#
+# FREE TIER: This is configured for Render's free plan (no paid disk).
+# The SQLite database is ephemeral and resets when the service restarts or wakes
+# from sleep. That's fine for Ghost because the DB is just a cache of public
+# scraped data -- the backend auto-repopulates itself on startup (it runs an
+# initial fetch when the DB is empty), and watchlists live in the browser.
+#
+# Trade-offs of free tier:
+#   - Service sleeps after ~15 min of inactivity; first request then takes ~50s.
+#   - While asleep the scheduler is paused (data updates resume once it wakes).
+# To remove these, upgrade to plan: starter (~$7/mo) and add a persistent disk
+# (see DEPLOYMENT.md for the paid variant).
+services:
+  - type: web
+    name: ghost-api
+    runtime: docker
+    rootDir: scraper
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Ephemeral DB path (no persistent disk on free tier)
+      - key: DATABASE_PATH
+        value: /app/data/ghost.db
+      # Auto-fetch scheduler (set to false to disable background fetching)
+      - key: ENABLE_SCHEDULER
+        value: "true"
+      - key: FETCH_INTERVAL_MINUTES
+        value: "30"
+      # Comma-separated allowed CORS origins. Set this to your Vercel URL,
+      # e.g. https://ghost.vercel.app  (and your custom domain once you have one)
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # ---- Secrets: set these in the Render dashboard (sync:false keeps them out of git) ----
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: NEWSAPI_KEY
+        sync: false
+      - key: POLYGON_API_KEY
+        sync: false
+      - key: QUIVER_API_KEY
+        sync: false
