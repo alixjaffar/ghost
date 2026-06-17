@@ -1,12 +1,11 @@
 /**
  * Ghost API Client
- * 
- * Connects the frontend to the FastAPI backend.
- * Falls back to mock data if the API is unavailable.
+ *
+ * Connects the frontend to the FastAPI backend. Only ever returns real
+ * backend data — there is no demo/mock fallback.
  */
 
 import type { Signal } from './types';
-import { mockSignals, getSignalById as getMockSignalById, searchSignals as searchMockSignals } from './mock-data';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -27,7 +26,6 @@ interface ApiStats {
 
 class GhostApiClient {
   private baseUrl: string;
-  private useMockData: boolean = false;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
@@ -36,7 +34,7 @@ class GhostApiClient {
   private async fetch<T>(endpoint: string, options?: RequestInit, timeoutMs: number = 120000): Promise<T> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    
+
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
@@ -54,11 +52,10 @@ class GhostApiClient {
       return response.json();
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn(`API request timed out after ${timeoutMs}ms, using mock data`);
+        console.warn(`API request timed out after ${timeoutMs}ms`);
       } else {
-        console.warn(`API request failed, using mock data:`, error);
+        console.warn(`API request failed:`, error);
       }
-      this.useMockData = true;
       throw error;
     } finally {
       clearTimeout(timeoutId);
@@ -84,36 +81,26 @@ class GhostApiClient {
   async getSignals(status?: string): Promise<Signal[]> {
     try {
       const params = status ? `?status=${status}` : '';
-      const signals = await this.fetch<Signal[]>(`/api/signals${params}`);
-      this.useMockData = false;
-      return signals;
+      return await this.fetch<Signal[]>(`/api/signals${params}`);
     } catch {
-      console.log('Using mock signals data');
-      return status 
-        ? mockSignals.filter(s => s.status === status)
-        : mockSignals;
+      // No demo fallback — return nothing so only real signals ever show.
+      return [];
     }
   }
 
   async getSignal(id: string): Promise<Signal | null> {
     try {
-      const signal = await this.fetch<Signal>(`/api/signals/${id}`);
-      this.useMockData = false;
-      return signal;
+      return await this.fetch<Signal>(`/api/signals/${id}`);
     } catch {
-      console.log('Using mock signal data for:', id);
-      return getMockSignalById(id) || null;
+      return null;
     }
   }
 
   async searchSignals(query: string): Promise<Signal[]> {
     try {
-      const signals = await this.fetch<Signal[]>(`/api/search?q=${encodeURIComponent(query)}`);
-      this.useMockData = false;
-      return signals;
+      return await this.fetch<Signal[]>(`/api/search?q=${encodeURIComponent(query)}`);
     } catch {
-      console.log('Using mock search data');
-      return searchMockSignals(query);
+      return [];
     }
   }
 
@@ -123,10 +110,6 @@ class GhostApiClient {
     } catch {
       return { status: 'error', message: 'API unavailable' };
     }
-  }
-
-  isUsingMockData(): boolean {
-    return this.useMockData;
   }
 }
 

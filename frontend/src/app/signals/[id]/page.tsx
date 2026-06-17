@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import type { Signal } from "@/lib/types";
 import { formatTimeframe } from "@/lib/types";
-import { ArrowLeft, Clock, Brain, ArrowUp, ArrowDown, Share2, AlertCircle, Activity, ExternalLink } from "lucide-react";
+import { ArrowLeft, Clock, Brain, ArrowUp, ArrowDown, Share2, Activity, ExternalLink } from "lucide-react";
 
 interface SignalDetailPageProps {
   params: Promise<{ id: string }>;
@@ -31,7 +31,6 @@ export default function SignalDetailPage({ params }: SignalDetailPageProps) {
   const router = useRouter();
   const [signal, setSignal] = useState<Signal | null>(null);
   const [loading, setLoading] = useState(true);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   useEffect(() => {
     async function loadSignal() {
@@ -40,7 +39,6 @@ export default function SignalDetailPage({ params }: SignalDetailPageProps) {
         const data = await apiClient.getSignal(resolvedParams.id);
         if (data) {
           setSignal(data);
-          setUsingMockData(apiClient.isUsingMockData());
         } else {
           router.push('/signals');
         }
@@ -90,15 +88,6 @@ export default function SignalDetailPage({ params }: SignalDetailPageProps) {
             </Button>
           </Link>
         </div>
-
-        {usingMockData && (
-          <div className="mb-6 p-4 rounded-lg border border-ghost-amber/20 bg-ghost-amber/5 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-ghost-amber" />
-            <p className="text-sm text-muted-foreground">
-              Showing demo data. Start the backend for live signals.
-            </p>
-          </div>
-        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
