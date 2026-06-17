@@ -159,7 +159,7 @@ export default function LandingPage() {
 
         {/* What makes Ghost different */}
         <section className="relative py-24 px-4 border-t border-white/5 overflow-hidden">
-          <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-[42rem] rounded-full bg-[radial-gradient(circle,oklch(0.75_0.15_145_/_0.10),transparent_70%)] blur-2xl" />
+          <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-[42rem] rounded-full bg-[radial-gradient(circle,oklch(1_0_0_/_0.06),transparent_70%)] blur-2xl" />
           <div className="container mx-auto px-0 max-w-5xl relative">
             <div className="text-center mb-16">
               <span className={EYEBROW}>Why Ghost</span>
@@ -187,7 +187,7 @@ export default function LandingPage() {
                   >
                     <div className="shrink-0">
                       <div className={ICON_TILE}>
-                        <Icon className="h-6 w-6 text-ghost-green" />
+                        <Icon className="h-6 w-6 text-foreground" />
                       </div>
                     </div>
                     <div>
