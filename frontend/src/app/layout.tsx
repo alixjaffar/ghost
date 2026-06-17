@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { dark } from "@clerk/themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GlobalElements } from "@/components/layout/global-elements";
 import "./globals.css";
@@ -29,16 +30,11 @@ export default function RootLayout({
     <ClerkProvider
       afterSignOutUrl="/"
       appearance={{
+        // Clerk's official dark theme keeps the whole Account/UserProfile modal
+        // and the UserButton dropdown readable (was dark-on-dark / grey before).
+        baseTheme: dark,
         variables: {
           colorPrimary: "#22c55e",
-          colorBackground: "#0a0a0a",
-          // Dark-theme text/input colors so Clerk menus (e.g. the UserButton
-          // dropdown) aren't dark-on-dark and invisible.
-          colorText: "#ededed",
-          colorTextSecondary: "#a1a1aa",
-          colorInputBackground: "#171717",
-          colorInputText: "#ededed",
-          colorNeutral: "#ffffff",
         },
       }}
     >
