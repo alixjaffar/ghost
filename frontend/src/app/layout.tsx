@@ -32,6 +32,13 @@ export default function RootLayout({
         variables: {
           colorPrimary: "#22c55e",
           colorBackground: "#0a0a0a",
+          // Dark-theme text/input colors so Clerk menus (e.g. the UserButton
+          // dropdown) aren't dark-on-dark and invisible.
+          colorText: "#ededed",
+          colorTextSecondary: "#a1a1aa",
+          colorInputBackground: "#171717",
+          colorInputText: "#ededed",
+          colorNeutral: "#ffffff",
         },
       }}
     >

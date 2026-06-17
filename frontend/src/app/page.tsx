@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { GhostLogo } from "@/components/ghost";
 import { Button } from "@/components/ui/button";
+import { PixelHero } from "@/components/ui/pixel-perfect-hero";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { 
   Eye, 
@@ -57,6 +59,7 @@ const differentiators = [
 ];
 
 export default function LandingPage() {
+  const router = useRouter();
   return (
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -87,49 +90,17 @@ export default function LandingPage() {
       </header>
 
       <main>
-        <section className="pt-32 pb-20 px-4">
-          <div className="container mx-auto max-w-4xl text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-muted/30 text-sm text-muted-foreground mb-8">
-              <Activity className="h-4 w-4 text-ghost-green" />
-              Real-time market intelligence
-            </div>
-            
-            <GhostLogo size="xl" showText={false} className="justify-center mb-8" />
-            
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
-              The future is hiding<br />
-              <span className="text-muted-foreground">in plain sight.</span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-muted-foreground mb-4 max-w-2xl mx-auto">
-              Ghost detects <span className="text-foreground font-medium">signals</span> before they become headlines.
-            </p>
-            
-            <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-              We scan millions of conversations across the internet, analyze them in real time, 
-              and turn noise into actionable intelligence — so you can predict events before the market catches on.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Show when="signed-out">
-                <Link href="/sign-up">
-                  <Button size="lg" className="text-lg px-8 py-6">
-                    See it first. Act first.
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-              </Show>
-              <Show when="signed-in">
-                <Link href="/signals">
-                  <Button size="lg" className="text-lg px-8 py-6">
-                    Go to your Signals
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-              </Show>
-            </div>
-          </div>
-        </section>
+        <PixelHero
+          word1="See"
+          word2="First."
+          description="Ghost detects signals before they become headlines — turning millions of conversations across the internet into real-time, actionable market intelligence."
+          primaryCta="Enter Ghost"
+          primaryCtaMobile="Enter"
+          secondaryCta="View GitHub"
+          secondaryCtaMobile="GitHub"
+          onPrimaryClick={() => router.push("/signals")}
+          githubUrl="https://github.com/alixjaffar/ghost"
+        />
 
         <section className="py-20 border-t border-border">
           <div className="container mx-auto px-4">
