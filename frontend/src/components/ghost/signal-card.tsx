@@ -12,7 +12,7 @@ import { VelocityChart } from "./velocity-chart";
 import { RelatedTickers } from "./related-tickers";
 import { SourceBreakdown } from "./source-breakdown";
 import { WatchlistButton } from "./watchlist-button";
-import { Clock, ArrowUp, ArrowDown } from "lucide-react";
+import { Clock, ArrowUp, ArrowDown, Activity } from "lucide-react";
 
 interface SignalCardProps {
   signal: Signal;
@@ -20,9 +20,17 @@ interface SignalCardProps {
   className?: string;
 }
 
+const PredictionBadge = () => (
+  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-ghost-blue/10 text-ghost-blue border border-ghost-blue/20">
+    <Activity className="h-3 w-3" />
+    Prediction market
+  </span>
+);
+
 export function SignalCard({ signal, variant = "default", className }: SignalCardProps) {
   const isPositiveChange = signal.change24h > 0;
   const chartColor = isPositiveChange ? "green" : signal.change24h < 0 ? "red" : "neutral";
+  const isPrediction = signal.marketType === "prediction";
 
   if (variant === "compact") {
     return (
@@ -37,6 +45,12 @@ export function SignalCard({ signal, variant = "default", className }: SignalCar
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <StatusBadge status={signal.status} size="sm" />
+              {isPrediction && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-ghost-blue/10 text-ghost-blue border border-ghost-blue/20">
+                  <Activity className="h-2.5 w-2.5" />
+                  Odds
+                </span>
+              )}
               <span className={cn(
                 "text-xs tabular-nums flex items-center gap-0.5",
                 isPositiveChange ? "text-ghost-green" : "text-ghost-red"
@@ -73,6 +87,7 @@ export function SignalCard({ signal, variant = "default", className }: SignalCar
             <div className="flex items-center gap-3 mb-2">
               <StatusBadge status={signal.status} />
               <ConfidenceBadge confidence={signal.confidence} size="sm" />
+              {isPrediction && <PredictionBadge />}
               <span className={cn(
                 "text-sm tabular-nums flex items-center gap-1 ml-auto",
                 isPositiveChange ? "text-ghost-green" : signal.change24h < 0 ? "text-ghost-red" : "text-muted-foreground"
@@ -97,7 +112,9 @@ export function SignalCard({ signal, variant = "default", className }: SignalCar
               </span>
             </div>
             <div className="text-muted-foreground">
-              {signal.totalMentions.toLocaleString()} mentions
+              {isPrediction
+                ? `$${(signal.marketVolume24h ?? signal.totalMentions).toLocaleString()} 24h volume`
+                : `${signal.totalMentions.toLocaleString()} mentions`}
             </div>
           </div>
 

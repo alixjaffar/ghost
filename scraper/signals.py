@@ -5,12 +5,16 @@ This module transforms raw scraped content and ticker mentions into
 actionable signals with probability, acceleration, and confidence scores.
 """
 import asyncio
+import re
 from datetime import datetime, timedelta
 from collections import defaultdict
 from typing import Optional
 import anthropic
 
-from config import ANTHROPIC_API_KEY, BULK_MODEL, INSIGHT_MODEL
+from config import (
+    ANTHROPIC_API_KEY, BULK_MODEL, INSIGHT_MODEL,
+    QUESTION_TICKER_MAP, TRACKED_TICKERS,
+)
 from database import Database
 from models import Platform, Sentiment
 
@@ -39,10 +43,17 @@ class SignalGenerator:
             signal = await self._generate_signal(narrative)
             if signal:
                 signals.append(signal)
-        
+
+        # Add first-class prediction-market signals (real traded odds)
+        try:
+            prediction_signals = await self.generate_prediction_market_signals(cutoff)
+            signals.extend(prediction_signals)
+        except Exception as e:
+            print(f"Prediction-market signal generation failed: {e}")
+
         # Sort by acceleration score
         signals.sort(key=lambda x: x['accelerationScore'], reverse=True)
-        
+
         return signals
     
     async def _cluster_narratives(self, mentions: list[dict]) -> list[dict]:
@@ -217,6 +228,7 @@ class SignalGenerator:
             'recentEvidence': recent_evidence,
             'velocityData': velocity_data,
             'aiInsight': ai_result['aiInsight'],
+            'marketType': 'narrative',
             'createdAt': min(m['created_at'] for m in mentions),
             'updatedAt': datetime.utcnow().isoformat(),
         }
@@ -326,3 +338,244 @@ Focus on the underlying story, not just that people are talking about the ticker
             'whyItMatters': "Monitor for potential market impact.",
             'aiInsight': "Unable to generate AI insight at this time."
         }
+
+    # ===========================================
+    # Prediction-market signals (Polymarket)
+    # ===========================================
+
+    async def generate_prediction_market_signals(self, cutoff: datetime) -> list[dict]:
+        """Build first-class signals from Polymarket prediction markets.
+
+        Unlike narrative signals, these carry a *real* traded probability as the
+        event probability instead of a heuristic estimate.
+        """
+        rows = await self.db.get_platform_content('polymarket', since=cutoff)
+        if not rows:
+            return []
+
+        # Dedupe by market slug/title, keeping the most recent snapshot.
+        seen: set[str] = set()
+        signals: list[dict] = []
+        for row in rows:
+            meta = row.get('metadata') or {}
+            key = meta.get('slug') or row.get('title') or row.get('id')
+            if key in seen:
+                continue
+            seen.add(key)
+            signal = self._build_prediction_signal(row, meta)
+            if signal:
+                signals.append(signal)
+
+        # Generate AI insights concurrently (falls back to the templated insight).
+        if self.client and signals:
+            insights = await asyncio.gather(
+                *[self._generate_prediction_insight(s) for s in signals],
+                return_exceptions=True,
+            )
+            for signal, insight in zip(signals, insights):
+                if isinstance(insight, str) and insight:
+                    signal['aiInsight'] = insight
+
+        return signals
+
+    def _build_prediction_signal(self, row: dict, meta: dict) -> Optional[dict]:
+        question = meta.get('question') or row.get('title')
+        if not question:
+            return None
+
+        prob = float(meta.get('implied_probability') or 0)
+        prob_int = int(round(max(1, min(99, prob))))
+        top_outcome = meta.get('top_outcome') or "this outcome"
+        change_pts = round(float(meta.get('one_day_price_change') or 0) * 100, 1)
+        volume_24h = float(meta.get('volume_24h') or 0)
+        liquidity = float(meta.get('liquidity') or 0)
+        url = meta.get('url') or row.get('url') or "https://polymarket.com"
+
+        tickers = self._map_question_to_tickers(f"{question} {meta.get('description', '')}")
+
+        accel = int(min(100, 30
+                        + min(40, abs(change_pts) * 4)
+                        + (30 if volume_24h >= 1_000_000 else 20 if volume_24h >= 250_000
+                           else 10 if volume_24h >= 50_000 else 0)))
+
+        if volume_24h >= 1_000_000 or liquidity >= 500_000:
+            confidence = 'very_high'
+        elif volume_24h >= 250_000 or liquidity >= 150_000:
+            confidence = 'high'
+        elif volume_24h >= 50_000 or liquidity >= 25_000:
+            confidence = 'medium'
+        else:
+            confidence = 'low'
+
+        if change_pts >= 8:
+            status = 'breaking'
+        elif change_pts >= 3:
+            status = 'accelerating'
+        elif change_pts <= -5:
+            status = 'cooling'
+        else:
+            status = 'emerging'
+
+        timeframe_min, timeframe_max = self._prediction_timeframe(meta.get('end_date'))
+
+        # Build an odds summary for evidence.
+        outcomes = meta.get('outcomes') or []
+        prices = meta.get('outcome_prices') or []
+        if outcomes and prices:
+            odds_summary = ", ".join(
+                f"{o} {round(float(p) * 100)}%" for o, p in zip(outcomes, prices)
+            )
+        else:
+            odds_summary = f"{top_outcome} {prob_int}%"
+
+        slug = meta.get('slug') or re.sub(r'[^a-z0-9]+', '-', question.lower()).strip('-')[:40]
+        signal_id = f"pm-{slug}" if slug else f"pm-{row.get('id', 'market')}"
+
+        change_word = "up" if change_pts > 0 else "down" if change_pts < 0 else "flat"
+        related_tickers = [
+            {
+                'symbol': t,
+                'name': t,
+                'exposure': 'mixed',
+                'relevanceScore': 85 - (i * 5),
+            }
+            for i, t in enumerate(tickers)
+        ]
+
+        why_it_matters = (
+            "Prediction-market odds reflect real capital at risk and often shift "
+            "before mainstream coverage does."
+        )
+        if tickers:
+            why_it_matters += f" Watch {', '.join(tickers)} for read-through."
+
+        created_at = row.get('created_at') or datetime.utcnow().isoformat()
+
+        return {
+            'id': signal_id,
+            'title': question[:120],
+            'summary': (
+                f"Polymarket prices \"{top_outcome}\" at {prob_int}% "
+                f"(${volume_24h:,.0f} traded in 24h, {change_word} {abs(change_pts)} pts)."
+            ),
+            'fullDescription': (
+                meta.get('description')
+                or f"Traders on Polymarket price this market at {prob_int}% for \"{top_outcome}\". "
+                   f"Odds moved {change_word} {abs(change_pts)} points over the past 24 hours "
+                   f"on ${volume_24h:,.0f} of volume."
+            ),
+            'whyItMatters': why_it_matters,
+            'eventProbability': prob_int,
+            'accelerationScore': accel,
+            'confidence': confidence,
+            'status': status,
+            'timeframeMin': timeframe_min,
+            'timeframeMax': timeframe_max,
+            'timeframeUnit': 'days',
+            'change24h': change_pts,
+            'totalMentions': int(volume_24h),
+            'relatedTickers': related_tickers,
+            'sourceBreakdown': [{
+                'platform': 'polymarket',
+                'mentions': int(volume_24h),
+                'percentChange24h': change_pts,
+            }],
+            'recentEvidence': [{
+                'id': 'pm-0',
+                'timestamp': created_at,
+                'platform': 'polymarket',
+                'title': question[:100],
+                'snippet': odds_summary,
+                'url': url,
+                'engagement': int(volume_24h),
+            }],
+            'velocityData': self._prediction_velocity(prob, change_pts),
+            'aiInsight': (
+                f"The market currently implies a {prob_int}% chance of \"{top_outcome}\". "
+                + (f"Related tickers to watch: {', '.join(tickers)}. " if tickers else "")
+                + "Treat this as a real-money probability, not a guarantee."
+            ),
+            'marketType': 'prediction',
+            'impliedProbability': prob_int,
+            'marketVolume24h': int(volume_24h),
+            'marketUrl': url,
+            'createdAt': created_at,
+            'updatedAt': datetime.utcnow().isoformat(),
+        }
+
+    def _map_question_to_tickers(self, text: str) -> list[str]:
+        """Map prediction-market prose to tradable tickers (conservative)."""
+        lowered = text.lower()
+        found: list[str] = []
+
+        for keyword, tickers in QUESTION_TICKER_MAP.items():
+            if keyword in lowered:
+                for t in tickers:
+                    if t not in found:
+                        found.append(t)
+
+        # Explicit $TICKER mentions only (bare-word matching is too noisy here).
+        for match in re.finditer(r'\$([A-Z]{1,5})\b', text.upper()):
+            ticker = match.group(1)
+            if ticker in TRACKED_TICKERS and ticker not in found:
+                found.append(ticker)
+
+        return found[:5]
+
+    @staticmethod
+    def _prediction_timeframe(end_date) -> tuple[int, int]:
+        """Days until the market resolves, when known."""
+        if end_date:
+            try:
+                end = datetime.fromisoformat(str(end_date).replace("Z", "+00:00")).replace(tzinfo=None)
+                days = (end - datetime.utcnow()).days
+                if days >= 1:
+                    return days, days
+            except (ValueError, AttributeError):
+                pass
+        return 30, 90
+
+    @staticmethod
+    def _prediction_velocity(prob: float, change_pts: float) -> list[dict]:
+        """Synthesize a 15-point implied-odds series ending at the current price."""
+        now = datetime.utcnow()
+        start = max(0.0, min(100.0, prob - change_pts))
+        data = []
+        for days_ago in range(14, -1, -1):
+            frac = (14 - days_ago) / 14
+            value = start + (prob - start) * frac
+            data.append({
+                'timestamp': (now - timedelta(days=days_ago)).isoformat(),
+                'value': round(max(0.0, min(100.0, value)), 1),
+            })
+        return data
+
+    async def _generate_prediction_insight(self, signal: dict) -> str:
+        """Use Claude for a sharp 2-sentence read on a prediction market."""
+        if not self.client:
+            return signal.get('aiInsight', '')
+
+        tickers = [t['symbol'] for t in signal.get('relatedTickers', [])]
+        prompt = f"""A Polymarket prediction market is priced as follows:
+
+Question: {signal['title']}
+Implied probability: {signal['eventProbability']}%
+24h odds change: {signal['change24h']} points
+24h volume: ${signal.get('marketVolume24h', 0):,}
+{("Related tickers: " + ", ".join(tickers)) if tickers else ""}
+
+Write a 2-sentence actionable insight for an investor: what this implied
+probability and recent move suggest, and any read-through to the tickers. Be
+concrete and avoid hype. Plain text only, no preamble."""
+
+        try:
+            response = await self.client.messages.create(
+                model=BULK_MODEL,
+                max_tokens=200,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.content[0].text.strip()
+            return text or signal.get('aiInsight', '')
+        except Exception as e:
+            print(f"Prediction insight generation failed: {e}")
+            return signal.get('aiInsight', '')

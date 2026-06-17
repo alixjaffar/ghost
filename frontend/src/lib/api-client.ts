@@ -13,13 +13,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 interface ApiHealth {
   status: string;
   timestamp: string;
-  sources: {
-    youtube: boolean;
-    stocktwits: boolean;
-    news: boolean;
-    polygon: boolean;
-    reddit: boolean;
-  };
+  // Source keys are dynamic (youtube, polymarket, stocktwits, news, polygon, reddit, ...).
+  sources: Record<string, boolean>;
   database: string;
 }
 

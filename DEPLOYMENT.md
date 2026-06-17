@@ -28,9 +28,11 @@ Have these API keys ready (you already have most):
 |-----|-----------------|-----------|
 | `ANTHROPIC_API_KEY` | console.anthropic.com | Yes |
 | `YOUTUBE_API_KEY` | console.cloud.google.com | Yes |
+| `APIFY_API_TOKEN` | console.apify.com → Integrations | Recommended (cloud YouTube transcripts, no IP blocks) |
 | `NEWSAPI_KEY` | newsapi.org | Yes |
 | `POLYGON_API_KEY` | polygon.io | Recommended |
 | `QUIVER_API_KEY` | quiverquant.com | Optional |
+| Polymarket | public API — no key | On by default (`POLYMARKET_ENABLED=true`) |
 | Clerk Publishable + Secret key | Clerk dashboard → API Keys | Yes |
 
 ---
@@ -75,9 +77,10 @@ Koyeb builds straight from your repo's `Dockerfile` (already in `scraper/`).
 5. **Exposed port:** `8000`, protocol `HTTP`, route `/` (the Dockerfile already listens on `$PORT`, which Koyeb sets to 8000).
 6. **Health check:** HTTP path `/health`.
 7. **Environment variables** — add:
-   - Secrets: `ANTHROPIC_API_KEY`, `YOUTUBE_API_KEY`, `NEWSAPI_KEY`, `POLYGON_API_KEY`, `QUIVER_API_KEY`
+   - Secrets: `ANTHROPIC_API_KEY`, `YOUTUBE_API_KEY`, `APIFY_API_TOKEN`, `NEWSAPI_KEY`, `POLYGON_API_KEY`, `QUIVER_API_KEY`
    - `ENABLE_SCHEDULER` = `true`
    - `FETCH_INTERVAL_MINUTES` = `30`
+   - `POLYMARKET_ENABLED` = `true`
    - `ALLOWED_ORIGINS` = leave blank for now (set it after you have the Vercel URL in step 5)
 8. Deploy. Once live, note your backend URL, e.g. `https://ghost-api-YOURORG.koyeb.app`.
 9. Verify: open `https://ghost-api-YOURORG.koyeb.app/health` — you should see `{"status":"healthy",...}`.

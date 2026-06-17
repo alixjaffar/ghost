@@ -33,7 +33,7 @@ class YouTubeSource(BaseSource):
         
         # Get videos from channels
         async with httpx.AsyncClient() as client:
-            for channel_id in YOUTUBE_CHANNELS[:5]:  # Limit channels per run
+            for channel_id in YOUTUBE_CHANNELS:  # Curated channel list (cap removed)
                 try:
                     channel_videos = await self._get_channel_videos(client, channel_id, limit=5)
                     video_ids.update(channel_videos)

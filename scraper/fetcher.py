@@ -11,12 +11,14 @@ from database import Database
 from analyzer import ContentAnalyzer
 from sources import (
     YouTubeSource,
+    ApifyYouTubeSource,
+    PolymarketSource,
     StockTwitsSource,
     NewsAPISource,
     PolygonSource,
     QuiverSource,
 )
-from config import MAX_ITEMS_PER_SOURCE
+from config import MAX_ITEMS_PER_SOURCE, APIFY_API_TOKEN
 
 
 class DataFetcher:
@@ -26,9 +28,18 @@ class DataFetcher:
         self.db = db
         self.analyzer = ContentAnalyzer()
         
+        # YouTube: prefer Apify (cloud transcripts, no IP blocks) when a token is
+        # configured; otherwise fall back to the direct youtube-transcript-api path.
+        youtube_source = ApifyYouTubeSource() if APIFY_API_TOKEN else YouTubeSource()
+        if APIFY_API_TOKEN:
+            print("YouTube source: Apify (cloud)")
+        else:
+            print("YouTube source: youtube-transcript-api (direct) — set APIFY_API_TOKEN for reliable cloud scraping")
+
         # Initialize all sources
         self.sources = [
-            YouTubeSource(),
+            youtube_source,
+            PolymarketSource(),
             StockTwitsSource(),
             NewsAPISource(),
             PolygonSource(),

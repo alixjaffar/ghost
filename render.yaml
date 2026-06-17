@@ -30,8 +30,11 @@ services:
         value: "true"
       - key: FETCH_INTERVAL_MINUTES
         value: "30"
-      # Comma-separated allowed CORS origins. Set this to your Vercel URL,
-      # e.g. https://ghost.vercel.app  (and your custom domain once you have one)
+      # Polymarket prediction-market signals (public API, no key needed)
+      - key: POLYMARKET_ENABLED
+        value: "true"
+      # Comma-separated allowed CORS origins. Set this to the frontend's URL,
+      # e.g. https://ghost-web.onrender.com (and your custom domain once you have one)
       - key: ALLOWED_ORIGINS
         sync: false
       # ---- Secrets: set these in the Render dashboard (sync:false keeps them out of git) ----
@@ -39,9 +42,46 @@ services:
         sync: false
       - key: YOUTUBE_API_KEY
         sync: false
+      # Apify token -> reliable cloud YouTube transcripts (no IP blocks). Strongly
+      # recommended on Render; without it YouTube falls back to the IP-blocked path.
+      - key: APIFY_API_TOKEN
+        sync: false
       - key: NEWSAPI_KEY
         sync: false
       - key: POLYGON_API_KEY
         sync: false
       - key: QUIVER_API_KEY
         sync: false
+
+  # ---- Frontend: Next.js 16 web app (Clerk auth) ----
+  - type: web
+    name: ghost-web
+    runtime: node
+    rootDir: frontend
+    plan: free
+    autoDeploy: true
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      # Next.js 16 requires Node 20+.
+      - key: NODE_VERSION
+        value: "20"
+      # Public URL of the backend API. The browser calls this directly, and it's
+      # inlined at build time (NEXT_PUBLIC_*), so set it to your ghost-api URL,
+      # e.g. https://ghost-api.onrender.com
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      # ---- Clerk auth: set these in the Render dashboard (sync:false) ----
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      # Clerk route config (not secret — safe to commit).
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_URL
+        value: /sign-in
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_URL
+        value: /sign-up
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL
+        value: /signals
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL
+        value: /signals

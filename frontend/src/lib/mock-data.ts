@@ -340,6 +340,40 @@ export const mockSignals: Signal[] = [
     createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
+  {
+    id: 'pm-fed-rate-cut-2026',
+    title: 'Will the Fed cut interest rates at its next meeting?',
+    summary: 'Polymarket prices "Yes" at 38% ($2,480,000 traded in 24h, up 6 pts).',
+    fullDescription: 'Traders on Polymarket price a near-term Fed rate cut at 38%, up 6 points over the past 24 hours on heavy volume after softer-than-expected inflation data. The market reflects real money positioning ahead of the next FOMC decision.',
+    whyItMatters: 'Prediction-market odds reflect real capital at risk and often shift before mainstream coverage does. Watch TLT, SPY for read-through.',
+    eventProbability: 38,
+    accelerationScore: 74,
+    confidence: 'high',
+    status: 'accelerating',
+    timeframeMin: 21,
+    timeframeMax: 21,
+    timeframeUnit: 'days',
+    change24h: 6,
+    totalMentions: 2480000,
+    relatedTickers: [
+      { symbol: 'TLT', name: 'TLT', exposure: 'mixed', relevanceScore: 85 },
+      { symbol: 'SPY', name: 'SPY', exposure: 'mixed', relevanceScore: 80 },
+    ],
+    sourceBreakdown: [
+      { platform: 'polymarket', mentions: 2480000, percentChange24h: 6 },
+    ],
+    recentEvidence: [
+      { id: 'pm-0', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), platform: 'polymarket', title: 'Will the Fed cut interest rates at its next meeting?', snippet: 'Yes 38%, No 62%', url: 'https://polymarket.com', engagement: 2480000 },
+    ],
+    velocityData: generateVelocityData(14, 'up', 0.1),
+    aiInsight: 'The market implies a 38% chance of a near-term cut, rising on softer inflation prints. A continued move higher would be supportive for long-duration Treasuries (TLT); treat this as a real-money probability, not a guarantee.',
+    marketType: 'prediction',
+    impliedProbability: 38,
+    marketVolume24h: 2480000,
+    marketUrl: 'https://polymarket.com',
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
 ];
 
 export function getSignalById(id: string): Signal | undefined {

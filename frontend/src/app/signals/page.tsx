@@ -28,6 +28,7 @@ export default function SignalsPage() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<SignalStatus | 'all'>('all');
+  const [laneFilter, setLaneFilter] = useState<'all' | 'narrative' | 'prediction'>('all');
   const [sortBy, setSortBy] = useState<string>('acceleration');
   const [viewMode, setViewMode] = useState<'default' | 'compact'>('default');
   const [usingMockData, setUsingMockData] = useState(false);
@@ -51,11 +52,17 @@ export default function SignalsPage() {
 
   const filteredAndSortedSignals = useMemo(() => {
     let filtered = [...signals];
-    
+
     if (statusFilter !== 'all') {
       filtered = filtered.filter(s => s.status === statusFilter);
     }
-    
+
+    if (laneFilter === 'prediction') {
+      filtered = filtered.filter(s => s.marketType === 'prediction');
+    } else if (laneFilter === 'narrative') {
+      filtered = filtered.filter(s => s.marketType !== 'prediction');
+    }
+
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'probability':
@@ -71,7 +78,7 @@ export default function SignalsPage() {
     });
     
     return filtered;
-  }, [signals, statusFilter, sortBy]);
+  }, [signals, statusFilter, laneFilter, sortBy]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: signals.length };
@@ -149,6 +156,23 @@ export default function SignalsPage() {
           </div>
           
           <div className="flex items-center gap-2 lg:ml-auto">
+            <div className="flex items-center border border-border rounded-md overflow-hidden">
+              {([
+                { value: 'all', label: 'All' },
+                { value: 'narrative', label: 'Narratives' },
+                { value: 'prediction', label: 'Markets' },
+              ] as const).map((lane) => (
+                <Button
+                  key={lane.value}
+                  variant={laneFilter === lane.value ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setLaneFilter(lane.value)}
+                  className="rounded-none"
+                >
+                  {lane.label}
+                </Button>
+              ))}
+            </div>
             <span className="text-sm text-muted-foreground">Sort by:</span>
             <select
               value={sortBy}

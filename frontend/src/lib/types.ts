@@ -20,15 +20,18 @@ export type SignalStatus = 'emerging' | 'accelerating' | 'breaking' | 'cooling';
 
 export type ConfidenceLevel = 'low' | 'medium' | 'high' | 'very_high';
 
-export type SourcePlatform = 
-  | 'reddit' 
-  | 'twitter' 
-  | 'youtube' 
-  | 'tiktok' 
-  | 'instagram' 
-  | 'podcasts' 
-  | 'news' 
-  | 'comments';
+export type SourcePlatform =
+  | 'reddit'
+  | 'twitter'
+  | 'youtube'
+  | 'tiktok'
+  | 'instagram'
+  | 'podcasts'
+  | 'news'
+  | 'comments'
+  | 'polymarket';
+
+export type MarketType = 'narrative' | 'prediction';
 
 export type TickerExposure = 'positive' | 'negative' | 'mixed';
 
@@ -85,7 +88,13 @@ export interface Signal {
   velocityData: VelocityDataPoint[];
   
   aiInsight: string;
-  
+
+  // Prediction-market signals (Polymarket) carry real traded odds.
+  marketType?: MarketType;
+  impliedProbability?: number;
+  marketVolume24h?: number;
+  marketUrl?: string;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -145,6 +154,7 @@ export function getPlatformIcon(platform: SourcePlatform): string {
     case 'podcasts': return 'Mic';
     case 'news': return 'Newspaper';
     case 'comments': return 'MessageCircle';
+    case 'polymarket': return 'TrendingUp';
   }
 }
 

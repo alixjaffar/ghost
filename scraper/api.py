@@ -298,7 +298,7 @@ async def trigger_source_fetch(source: str, background_tasks: BackgroundTasks):
     if not data_fetcher:
         raise HTTPException(status_code=500, detail="Fetcher not initialized")
 
-    valid_sources = ["youtube", "stocktwits", "news", "polygon", "reddit"]
+    valid_sources = ["youtube", "polymarket", "stocktwits", "news", "polygon", "reddit"]
     if source not in valid_sources:
         raise HTTPException(status_code=400, detail=f"Invalid source. Must be one of: {valid_sources}")
 

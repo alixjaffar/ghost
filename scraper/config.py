@@ -14,6 +14,44 @@ POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
 QUIVER_API_KEY = os.getenv("QUIVER_API_KEY")
 
 # ===========================================
+# Apify - Cloud YouTube scraping (no IP blocks)
+# ===========================================
+# When set, Ghost uses Apify to discover YouTube videos and pull transcripts in
+# the cloud, replacing the brittle youtube-transcript-api path that gets the
+# server's IP blocked. Get a token at https://console.apify.com/account/integrations
+APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
+# Actor that scrapes YouTube videos + subtitles. Use the "user~actor" slug form.
+APIFY_YOUTUBE_ACTOR = os.getenv("APIFY_YOUTUBE_ACTOR", "streamers~youtube-scraper")
+# Max videos Apify returns per search term / channel (keeps runs cheap + fast).
+APIFY_MAX_RESULTS_PER_QUERY = int(os.getenv("APIFY_MAX_RESULTS_PER_QUERY", "4"))
+# Optional raw JSON to fully override the actor input (escape hatch for other actors).
+APIFY_YOUTUBE_INPUT = os.getenv("APIFY_YOUTUBE_INPUT")
+
+# ===========================================
+# Polymarket - Prediction market odds (public Gamma API, no key)
+# ===========================================
+POLYMARKET_ENABLED = os.getenv("POLYMARKET_ENABLED", "true").lower() == "true"
+POLYMARKET_GAMMA_URL = os.getenv("POLYMARKET_GAMMA_URL", "https://gamma-api.polymarket.com")
+# How many finance-relevant markets to surface as signals.
+POLYMARKET_MAX_MARKETS = int(os.getenv("POLYMARKET_MAX_MARKETS", "12"))
+# Only markets whose question/description match these keywords are kept. This is
+# what scopes Polymarket to *finance* (stocks, crypto, Fed/macro) instead of
+# sports/pop-culture markets.
+POLYMARKET_KEYWORDS = [
+    # Equities / markets
+    "stock", "stocks", "s&p", "sp500", "nasdaq", "dow", "earnings", "ipo",
+    "nvidia", "tesla", "apple", "microsoft", "amazon", "meta", "google",
+    "market cap", "all-time high", "all time high", "share price",
+    # Crypto
+    "bitcoin", "btc", "ethereum", "eth", "solana", "sol", "crypto",
+    "coinbase", "microstrategy", "etf", "dogecoin", "xrp", "stablecoin",
+    # Macro / Fed
+    "fed", "federal reserve", "interest rate", "rate cut", "rate hike",
+    "recession", "inflation", "cpi", "gdp", "jobs report", "unemployment",
+    "treasury", "yield", "tariff", "oil price", "gold price",
+]
+
+# ===========================================
 # Database
 # ===========================================
 DATABASE_PATH = os.getenv("DATABASE_PATH", "data/ghost.db")
@@ -50,6 +88,12 @@ YOUTUBE_CHANNELS = [
     # Market Analysis
     "UCbta0n8i6Rljh0obO7HzG9A",  # Ben Felix
     "UCJgHN6gk0cV7OWgjfCqdjsQ",  # Everything Money
+    # Stocks / Trading desks
+    "UC5cEHfCr6WOE1R1zcohd1IA",  # Jose Najarro Stocks (@JoseNajarroStocks)
+    "UCRAOycPjsSgcEyQcuJD_ENA",  # RiskReversal Media (@RiskReversalMedia)
+    # Financial News networks
+    "UCvJJ_dzjViJCoLf5uKUTwoA",  # CNBC (@CNBC)
+    "UCUMZ7gohGI9HcU9VNsr2FJQ",  # Bloomberg (@business)
 ]
 
 # Search terms for YouTube discovery
@@ -128,4 +172,46 @@ TRACKED_TICKERS = [
     "BABA", "JD", "PDD", "NIO", "XPEV",
     # ETFs
     "SPY", "QQQ", "IWM", "XLF", "XLE", "XLK",
+    # Crypto / macro proxies (so Polymarket crypto + Fed markets map to tradables)
+    "COIN", "MSTR", "MARA", "RIOT", "HOOD", "IBIT", "GBTC", "BITO",
+    "GLD", "SLV", "TLT", "USO", "UUP",
 ]
+
+# ===========================================
+# Polymarket question -> ticker mapping
+# ===========================================
+# Polymarket questions name companies/assets in prose ("Will Bitcoin hit $150k?").
+# This maps those phrases to tradable proxies so prediction-market signals carry
+# related tickers. Keys are lowercase substrings matched against the question.
+QUESTION_TICKER_MAP = {
+    "bitcoin": ["IBIT", "COIN", "MSTR"],
+    "btc": ["IBIT", "COIN", "MSTR"],
+    "ethereum": ["COIN"],
+    "eth ": ["COIN"],
+    "solana": ["COIN"],
+    "crypto": ["COIN", "IBIT"],
+    "coinbase": ["COIN"],
+    "microstrategy": ["MSTR"],
+    "nvidia": ["NVDA"],
+    "tesla": ["TSLA"],
+    "apple": ["AAPL"],
+    "microsoft": ["MSFT"],
+    "amazon": ["AMZN"],
+    "meta": ["META"],
+    "google": ["GOOGL"],
+    "alphabet": ["GOOGL"],
+    "palantir": ["PLTR"],
+    "s&p": ["SPY"],
+    "sp500": ["SPY"],
+    "s&p 500": ["SPY"],
+    "nasdaq": ["QQQ"],
+    "recession": ["SPY", "TLT"],
+    "rate cut": ["TLT", "SPY"],
+    "rate hike": ["TLT"],
+    "interest rate": ["TLT"],
+    "fed": ["TLT", "SPY"],
+    "inflation": ["TLT", "GLD"],
+    "cpi": ["TLT", "GLD"],
+    "gold": ["GLD"],
+    "oil": ["USO", "XLE"],
+}

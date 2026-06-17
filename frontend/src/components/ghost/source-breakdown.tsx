@@ -34,6 +34,7 @@ const platformIcons: Record<string, React.ElementType> = {
   comments: MessageCircle,
   stocktwits: TrendingUp,
   polygon: BarChart3,
+  polymarket: TrendingUp,
 };
 
 const platformLabels: Record<string, string> = {
@@ -47,6 +48,7 @@ const platformLabels: Record<string, string> = {
   comments: "Comments",
   stocktwits: "StockTwits",
   polygon: "Polygon",
+  polymarket: "Polymarket",
 };
 
 function formatMentions(count: number): string {

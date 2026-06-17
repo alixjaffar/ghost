@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import type { Signal } from "@/lib/types";
 import { formatTimeframe } from "@/lib/types";
-import { ArrowLeft, Clock, Brain, ArrowUp, ArrowDown, Share2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Clock, Brain, ArrowUp, ArrowDown, Share2, AlertCircle, Activity, ExternalLink } from "lucide-react";
 
 interface SignalDetailPageProps {
   params: Promise<{ id: string }>;
@@ -75,6 +75,7 @@ export default function SignalDetailPage({ params }: SignalDetailPageProps) {
 
   const isPositiveChange = signal.change24h > 0;
   const chartColor = isPositiveChange ? "green" : signal.change24h < 0 ? "red" : "neutral";
+  const isPrediction = signal.marketType === "prediction";
 
   return (
     <div className="min-h-screen bg-background">
@@ -105,6 +106,12 @@ export default function SignalDetailPage({ params }: SignalDetailPageProps) {
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <StatusBadge status={signal.status} />
                 <ConfidenceBadge confidence={signal.confidence} />
+                {isPrediction && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-ghost-blue/10 text-ghost-blue border border-ghost-blue/20">
+                    <Activity className="h-3 w-3" />
+                    Prediction market
+                  </span>
+                )}
                 <span className={`text-sm tabular-nums flex items-center gap-1 ${isPositiveChange ? "text-ghost-green" : signal.change24h < 0 ? "text-ghost-red" : "text-muted-foreground"}`}>
                   {isPositiveChange ? <ArrowUp className="h-3.5 w-3.5" /> : signal.change24h < 0 ? <ArrowDown className="h-3.5 w-3.5" /> : null}
                   {signal.change24h > 0 ? "+" : ""}{signal.change24h}% 24h
@@ -190,9 +197,13 @@ export default function SignalDetailPage({ params }: SignalDetailPageProps) {
                   </div>
 
                   <div className="flex items-center justify-between py-3 border-t border-border">
-                    <span className="text-sm text-muted-foreground">Total Mentions</span>
+                    <span className="text-sm text-muted-foreground">
+                      {isPrediction ? "24h Volume" : "Total Mentions"}
+                    </span>
                     <span className="text-sm font-medium tabular-nums">
-                      {signal.totalMentions.toLocaleString()}
+                      {isPrediction
+                        ? `$${(signal.marketVolume24h ?? signal.totalMentions).toLocaleString()}`
+                        : signal.totalMentions.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -210,6 +221,18 @@ export default function SignalDetailPage({ params }: SignalDetailPageProps) {
                   <Share2 className="h-4 w-4" />
                 </Button>
               </div>
+
+              {isPrediction && signal.marketUrl && (
+                <a
+                  href={signal.marketUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg border border-ghost-blue/20 bg-ghost-blue/5 text-sm font-medium text-ghost-blue hover:bg-ghost-blue/10 transition-colors"
+                >
+                  View on Polymarket
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
 
               <FinancialDisclaimer />
             </div>

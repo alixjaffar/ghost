@@ -12,15 +12,20 @@ Ghost is a full-stack app:
 ┌──────────────────────┐     ┌───────────────────────┐     ┌────────────────────┐
 │   Data Sources       │────▶│   Backend (FastAPI)   │────▶│  Frontend (Next.js)│
 │                      │     │                       │     │                    │
-│ - YouTube (transcripts)    │ - Ingest + store      │     │ - Landing          │
-│ - StockTwits         │     │ - Claude analysis     │     │ - Signal feed      │
-│ - NewsAPI            │     │ - Signal generation   │     │ - Signal detail    │
-│ - Polygon.io         │     │ - Auto-fetch scheduler│     │ - Watchlist/Search │
-│ - Quiver (Reddit)    │     │ - REST API + cache    │     │ - Clerk auth       │
+│ - YouTube via Apify  │     │ - Ingest + store      │     │ - Landing          │
+│ - Polymarket (odds)  │     │ - Claude analysis     │     │ - Signal feed      │
+│ - StockTwits         │     │ - Signal generation   │     │   (Narratives +    │
+│ - NewsAPI            │     │ - Prediction signals  │     │    Markets lanes)  │
+│ - Polygon.io         │     │ - Auto-fetch scheduler│     │ - Signal detail    │
+│ - Quiver (Reddit)    │     │ - REST API + cache    │     │ - Watchlist/Search │
 └──────────────────────┘     └───────────────────────┘     └────────────────────┘
         │                                                   ▲
-        └──── local-scraper (your Mac, YouTube transcripts) ┘
+        └──── local-scraper (optional fallback if no Apify) ┘
 ```
+
+**Two kinds of signals:**
+- **Narratives** — clustered ticker mentions from social/news/video, scored heuristically.
+- **Prediction markets** — trending finance/crypto/macro markets from **Polymarket**, carrying *real traded odds* as the event probability (not an estimate).
 
 - **Frontend** — `frontend/` — Next.js 16, TypeScript, Tailwind 4, shadcn/ui, Recharts, Clerk auth.
 - **Backend** — `scraper/` — FastAPI, SQLite (aiosqlite), Anthropic Claude, APScheduler.
@@ -61,12 +66,29 @@ python youtube_scraper.py --daemon
 
 ## Environment Variables
 
-- Backend keys: see `scraper/.env.example` (Anthropic, YouTube, NewsAPI, Polygon, Quiver, CORS, DB path, scheduler).
+- Backend keys: see `scraper/.env.example` (Anthropic, YouTube, **Apify**, **Polymarket**, NewsAPI, Polygon, Quiver, CORS, DB path, scheduler).
 - Frontend keys: see `frontend/.env.example` (`NEXT_PUBLIC_API_URL`, Clerk publishable/secret keys).
+
+### YouTube via Apify (recommended for cloud)
+
+The default YouTube path uses `youtube-transcript-api`, which gets the server's IP
+blocked when run in the cloud — the reason the project ships with a local Mac
+scraper. Set **`APIFY_API_TOKEN`** and Ghost fetches video transcripts through
+Apify's cloud instead, so the hosted backend works without your Mac running. The
+actor is overridable via `APIFY_YOUTUBE_ACTOR` (default `streamers~youtube-scraper`),
+and you can supply a full actor input with `APIFY_YOUTUBE_INPUT`. Every source
+degrades gracefully — Ghost ships and runs even before you add the token.
+
+### Polymarket (no key)
+
+Polymarket uses a public API, so no key is needed — it's on by default
+(`POLYMARKET_ENABLED=true`). Ghost pulls the most actively traded finance/crypto/
+macro markets and surfaces them as **prediction signals** with real implied odds.
 
 ## Features
 
-- **Signal Feed** — narratives ranked by acceleration & event probability, with status (breaking / accelerating / emerging / cooling), confidence, velocity, and related tickers.
+- **Signal Feed** — narratives ranked by acceleration & event probability, with status (breaking / accelerating / emerging / cooling), confidence, velocity, and related tickers. Filter by **Narratives** or **Markets** lane.
+- **Prediction Markets** — live Polymarket finance/crypto/macro markets as signals, with real traded odds, 24h odds moves, volume, and mapped tickers (e.g. Fed → TLT/SPY, Bitcoin → IBIT/COIN/MSTR).
 - **Signal Detail** — probability ring, 14-day velocity chart, AI insight, evidence timeline, source breakdown.
 - **Watchlist** — track signals & tickers (browser-local).
 - **Search** — across narratives, tickers, companies.

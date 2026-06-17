@@ -28,9 +28,16 @@ class Database:
                     url TEXT,
                     engagement INTEGER DEFAULT 0,
                     created_at TEXT NOT NULL,
-                    scraped_at TEXT NOT NULL
+                    scraped_at TEXT NOT NULL,
+                    metadata TEXT
                 )
             """)
+
+            # Migration: add metadata column to pre-existing databases.
+            cursor = await db.execute("PRAGMA table_info(content)")
+            columns = [row[1] for row in await cursor.fetchall()]
+            if "metadata" not in columns:
+                await db.execute("ALTER TABLE content ADD COLUMN metadata TEXT")
             
             # Ticker mentions table
             await db.execute("""
@@ -61,9 +68,9 @@ class Database:
         async with aiosqlite.connect(self.db_path) as db:
             try:
                 await db.execute("""
-                    INSERT OR REPLACE INTO content 
-                    (id, platform, author, author_followers, title, content, url, engagement, created_at, scraped_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO content
+                    (id, platform, author, author_followers, title, content, url, engagement, created_at, scraped_at, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     content.get('id'),
                     content.get('platform'),
@@ -75,6 +82,7 @@ class Database:
                     content.get('engagement', 0),
                     content.get('created_at'),
                     datetime.utcnow().isoformat(),
+                    json.dumps(content.get('metadata') or {}),
                 ))
                 await db.commit()
                 return True
@@ -152,7 +160,34 @@ class Database:
             
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
-    
+
+    async def get_platform_content(
+        self, platform: str, since: Optional[datetime] = None, limit: int = 200
+    ) -> list[dict]:
+        """Get recent content for one platform, with metadata parsed from JSON."""
+        if since is None:
+            since = datetime.utcnow() - timedelta(days=7)
+
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("""
+                SELECT * FROM content
+                WHERE platform = ? AND created_at >= ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (platform, since.isoformat(), limit))
+
+            rows = await cursor.fetchall()
+            results = []
+            for row in rows:
+                item = dict(row)
+                try:
+                    item["metadata"] = json.loads(item.get("metadata") or "{}")
+                except (json.JSONDecodeError, TypeError):
+                    item["metadata"] = {}
+                results.append(item)
+            return results
+
     async def get_content_count(self) -> int:
         """Get total content count."""
         async with aiosqlite.connect(self.db_path) as db:
