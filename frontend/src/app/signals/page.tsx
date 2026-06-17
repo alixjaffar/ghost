@@ -5,6 +5,7 @@ import { NavHeader } from "@/components/layout/nav-header";
 import { SignalCard, FinancialDisclaimer } from "@/components/ghost";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
+import { mockSignals } from "@/lib/mock-data";
 import type { Signal, SignalStatus } from "@/lib/types";
 import { Zap, TrendingUp, Sparkles, TrendingDown, LayoutGrid, List, RefreshCw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,13 +26,15 @@ const sortOptions = [
 ];
 
 export default function SignalsPage() {
-  const [signals, setSignals] = useState<Signal[]>([]);
+  // Start with demo signals so the feed is never empty while live data loads
+  // (the backend can take a while to wake + finish its first scrape).
+  const [signals, setSignals] = useState<Signal[]>(mockSignals);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<SignalStatus | 'all'>('all');
   const [laneFilter, setLaneFilter] = useState<'all' | 'narrative' | 'prediction'>('all');
   const [sortBy, setSortBy] = useState<string>('acceleration');
   const [viewMode, setViewMode] = useState<'default' | 'compact'>('default');
-  const [usingMockData, setUsingMockData] = useState(false);
+  const [usingMockData, setUsingMockData] = useState(true);
 
   useEffect(() => {
     loadSignals();
@@ -41,10 +44,20 @@ export default function SignalsPage() {
     setLoading(true);
     try {
       const data = await apiClient.getSignals();
-      setSignals(data);
-      setUsingMockData(apiClient.isUsingMockData());
+      if (data.length > 0) {
+        // Real signals available — show them.
+        setSignals(data);
+        setUsingMockData(apiClient.isUsingMockData());
+      } else {
+        // Backend reachable but still gathering — keep demo signals visible.
+        setSignals(mockSignals);
+        setUsingMockData(true);
+      }
     } catch (error) {
       console.error('Failed to load signals:', error);
+      // Network/timeout — fall back to demo signals so the feed stays populated.
+      setSignals(mockSignals);
+      setUsingMockData(true);
     } finally {
       setLoading(false);
     }
@@ -116,9 +129,11 @@ export default function SignalsPage() {
           <div className="mb-6 p-4 rounded-lg border border-ghost-amber/20 bg-ghost-amber/5 flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-ghost-amber" />
             <div>
-              <p className="font-medium text-ghost-amber">Using Demo Data</p>
+              <p className="font-medium text-ghost-amber">Showing demo signals</p>
               <p className="text-sm text-muted-foreground">
-                Backend API unavailable. Showing mock data for demonstration.
+                {loading
+                  ? "Connecting to live data — this can take a moment on first load."
+                  : "Live signals are still gathering or unavailable. Showing example signals in the meantime."}
               </p>
             </div>
           </div>
@@ -207,46 +222,21 @@ export default function SignalsPage() {
           </div>
         </div>
 
-        {loading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-40 bg-muted/50 rounded-xl animate-pulse" />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredAndSortedSignals.length === 0 ? (
-              signals.length === 0 ? (
-                <div className="text-center py-20">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-muted mb-5">
-                    <Sparkles className="h-7 w-7 text-muted-foreground" />
-                  </div>
-                  <h2 className="text-lg font-semibold mb-2">No live signals yet</h2>
-                  <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                    Ghost is gathering and analyzing data across sources. Fresh
-                    signals appear here as narratives accelerate.
-                  </p>
-                  <Button variant="outline" onClick={loadSignals} className="gap-2">
-                    <RefreshCw className="h-4 w-4" />
-                    Refresh
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center py-16 text-muted-foreground">
-                  <p>No signals match the selected filter.</p>
-                </div>
-              )
-            ) : (
-              filteredAndSortedSignals.map((signal) => (
-                <SignalCard 
-                  key={signal.id} 
-                  signal={signal} 
-                  variant={viewMode}
-                />
-              ))
-            )}
-          </div>
-        )}
+        <div className="space-y-4">
+          {filteredAndSortedSignals.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <p>No signals match the selected filter.</p>
+            </div>
+          ) : (
+            filteredAndSortedSignals.map((signal) => (
+              <SignalCard
+                key={signal.id}
+                signal={signal}
+                variant={viewMode}
+              />
+            ))
+          )}
+        </div>
 
         <div className="mt-12 pt-8 border-t border-border">
           <FinancialDisclaimer variant="card" />
