@@ -1,23 +1,31 @@
-name: Keep backend awake
+name: Keep services awake
 
-# Render's free tier spins the service down after ~15 min of no inbound
-# traffic, which pauses the scrape scheduler and (with the ephemeral DB)
-# empties the feed. This workflow pings /health every 10 minutes so the
-# service stays awake and the 30-min scraper keeps running.
+# Render's free tier spins services down after ~15 min of no inbound traffic.
+# This pings both services every 10 minutes so they stay warm:
+#   - backend  -> keeps the scrape scheduler running (and the feed populated)
+#   - frontend -> avoids the slow "service waking up" page on first visit
+# (GitHub may delay scheduled runs under load.)
 
 on:
   schedule:
-    - cron: "*/10 * * * *" # every 10 minutes (GitHub may delay under load)
+    - cron: "*/10 * * * *" # every 10 minutes
   workflow_dispatch: # allow manual runs from the Actions tab
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping ghost-api /health
+      - name: Ping ghost-api (backend) /health
         run: |
           echo "Pinging backend at $(date -u)"
-          # Don't fail the job on a slow cold start — the ping itself is what wakes it.
+          # Don't fail the job on a slow cold start — the ping itself wakes it.
           curl -fsS --max-time 90 https://ghost-api-f9cd.onrender.com/health \
-            && echo "  ok" \
-            || echo "  ping failed (service may be cold-starting)"
+            && echo "  backend ok" \
+            || echo "  backend ping failed (service may be cold-starting)"
+
+      - name: Ping ghost-web (frontend)
+        run: |
+          echo "Pinging frontend at $(date -u)"
+          curl -fsS --max-time 90 -o /dev/null https://ghost-web-w3m4.onrender.com/ \
+            && echo "  frontend ok" \
+            || echo "  frontend ping failed (service may be cold-starting)"
